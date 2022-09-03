@@ -3,12 +3,19 @@ from __future__ import annotations
 import collections
 import logging
 import time
+import aiohttp
 import homeassistant
+from spotipy import Spotify
 
 from homeassistant.components import websocket_api
 from homeassistant.const import CONF_ENTITY_ID, CONF_OFFSET, CONF_REPEAT
 from homeassistant.core import callback
 import homeassistant.core as ha_core
+from homeassistant.helpers.config_entry_oauth2_flow import (
+    OAuth2Session,
+    async_get_config_entry_implementation,
+)
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 
 from .const import (
     CONF_ACCOUNTS,
@@ -35,6 +42,7 @@ from .const import (
     SCHEMA_WS_PLAYER,
     SERVICE_START_COMMAND_SCHEMA,
     SPOTCAST_CONFIG_SCHEMA,
+    SPOTIFY_SCOPES,
     WS_TYPE_SPOTCAST_ACCOUNTS,
     WS_TYPE_SPOTCAST_CASTDEVICES,
     WS_TYPE_SPOTCAST_DEVICES,
@@ -48,6 +56,32 @@ CONFIG_SCHEMA = SPOTCAST_CONFIG_SCHEMA
 
 _LOGGER = logging.getLogger(__name__)
 
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up Spotcast from a config entry."""
+    _LOGGER.info("Config entry data from Spotcast")
+    _LOGGER.info(entry.data)
+    implementation = await async_get_config_entry_implementation(hass, entry)
+    session = OAuth2Session(hass, entry, implementation)
+
+    try:
+        await session.async_ensure_token_valid()
+    except aiohttp.ClientError as err:
+        raise ConfigEntryNotReady from err
+
+    spotify = Spotify(auth=session.token["access_token"])
+    _LOGGER.info("New Spotcast token:" + session.token["access_token"])
+    _LOGGER.info("Scopes for token: " + session.token["scope"])
+
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN]["session"] = session
+    hass.data[DOMAIN]["client"] = spotify
+    _LOGGER.info("Added session and client to hass data")
+
+    if not set(session.token["scope"].split(" ")).issuperset(SPOTIFY_SCOPES):
+        raise ConfigEntryAuthFailed
+
+    return True
 
 def setup(hass: ha_core.HomeAssistant, config: collections.OrderedDict) -> bool:
 
@@ -191,6 +225,7 @@ def setup(hass: ha_core.HomeAssistant, config: collections.OrderedDict) -> bool:
                 account, spotify_device_id, device_name, entity_id
             )
 
+        _LOGGER.info("Got spotify_device_id: %s", spotify_device_id)
         if helpers.is_empty_str(uri) and helpers.is_empty_str(search) and helpers.is_empty_str(category):
             _LOGGER.debug("Transfering playback")
             current_playback = client.current_playback()

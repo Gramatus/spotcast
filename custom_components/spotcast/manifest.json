@@ -9,7 +9,8 @@
   ],
   "version": "v3.6.29",
   "dependencies": [
-    "spotify"
+    "spotify",
+    "application_credentials"
   ],
   "after_dependencies": [
     "cast",
@@ -17,5 +18,6 @@
   ],
   "codeowners": [
     "@fondberg"
-  ]
+  ],
+  "config_flow": true
 }
