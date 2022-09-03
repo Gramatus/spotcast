@@ -123,31 +123,31 @@ class SpotifyToken:
 
     sp_dc = None
     sp_key = None
-    _access_token = None
-    _token_expires = 0
+    _access_token_web = None
+    _token_expires_web = 0
 
     def __init__(self, sp_dc: str, sp_key: str) -> None:
         self.sp_dc = sp_dc
         self.sp_key = sp_key
 
-    def ensure_token_valid(self) -> bool:
-        if float(self._token_expires) > time.time():
+    def ensure_token_valid_web(self) -> bool:
+        if float(self._token_expires_web) > time.time():
             return True
-        self.get_spotify_token()
+        self.get_spotify_token_web()
 
     @property
-    def access_token(self) -> str:
-        self.ensure_token_valid()
-        _LOGGER.debug("expires: %s time: %s", self._token_expires, time.time())
-        return self._access_token
+    def access_token_web(self) -> str:
+        self.ensure_token_valid_web()
+        _LOGGER.debug("expires: %s time: %s", self._token_expires_web, time.time())
+        return self._access_token_web
 
-    def get_spotify_token(self) -> tuple[str, int]:
+    def get_spotify_token_web(self) -> tuple[str, int]:
         try:
-            self._access_token, self._token_expires = st.start_session(
+            self._access_token_web, self._token_expires_web = st.start_session(
                 self.sp_dc, self.sp_key
             )
-            expires = self._token_expires - int(time.time())
-            return self._access_token, expires
+            expires = self._token_expires_web - int(time.time())
+            return self._access_token_web, expires
         except TooManyRedirects:
             _LOGGER.error("Could not get spotify token. sp_dc and sp_key could be expired. Please update in config.")
             raise HomeAssistantError("Expired sp_dc, sp_key")
