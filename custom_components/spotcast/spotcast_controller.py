@@ -87,7 +87,11 @@ class SpotifyCastDevice:
         sp = SpotifyController(access_token, expires)
         # sp = SpotifyController(access_token_web, expires_web)
         self.castDevice.register_handler(sp)
+        _LOGGER.info("Added SpotifyController as handler for castDevice")
+        # See https://github.com/home-assistant-libs/pychromecast for how to get info and stuff (not sure if it is helpful)
+        _LOGGER.info("Launching app")
         sp.launch_app()
+        _LOGGER.info("App launched")
 
         if not sp.is_launched and not sp.credential_error:
             raise HomeAssistantError(
@@ -127,13 +131,12 @@ class SpotifyToken:
     sp_key = None
     hass = None
     session = None
-    _expires = 0
     _access_token_web = None
     _token_expires_web = 0
-    _expires_web = 0
 
     def __init__(self, hass: ha_core.HomeAssistant, sp_dc: str, sp_key: str) -> None:
         self.hass = hass
+        _LOGGER.info("Reading session from hass data")
         self.session = hass.data[DOMAIN]["session"]
         self.sp_dc = sp_dc
         self.sp_key = sp_key
@@ -216,6 +219,7 @@ class SpotcastController:
         return None
 
     def get_spotify_device_id(self, account, spotify_device_id, device_name, entity_id):
+        _LOGGER.info("Running get_spotify_device_id")
         # login as real browser to get powerful token
         instance = self.get_token_instance(account)
         # get the spotify web api client
@@ -232,11 +236,14 @@ class SpotcastController:
                 entity_id,
             )
             me_resp = client._get("me")
+            _LOGGER.info("Starting controller")
             spotify_cast_device.startSpotifyController(instance.access_token, instance.expires, instance.access_token_web, instance.expires_web)
+            _LOGGER.info("Controller started")
             # Make sure it is started
             spotify_device_id = spotify_cast_device.getSpotifyDeviceId(
                 get_spotify_devices(self.hass, me_resp["id"])
             )
+        _LOGGER.info("Finished get_spotify_device_id")
         return spotify_device_id
 
     def play(

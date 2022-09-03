@@ -29,6 +29,7 @@ class SpotifyController(BaseController):
         super(SpotifyController, self).__init__(APP_NAMESPACE, APP_SPOTIFY)
 
         self.logger = logging.getLogger(__name__)
+        self.logger.info("Creating SpotifyController instance")
         self.session_started = False
         self.access_token = access_token
         self.expires = expires
@@ -36,6 +37,7 @@ class SpotifyController(BaseController):
         self.device = None
         self.credential_error = False
         self.waiting = threading.Event()
+        self.logger.info("Created SpotifyController instance")
 
     def receive_message(self, _message, data: dict):
         """
@@ -43,19 +45,44 @@ class SpotifyController(BaseController):
 
         Called when a message is received.
         """
+        self.logger.info("Received message via pychromecast from socket")
+        self.logger.info(_message)
+        self.logger.info("All data:")
+        self.logger.info(data)
+        self.logger.info("Payload only:")
+        self.logger.info(data["payload"])
         if data["type"] == TYPE_GET_INFO_RESPONSE:
+            self.logger.info("Got getInfoResponse message")
             self.device = data["payload"]["deviceID"]
             self.client = data["payload"]["clientID"]
+            self.logger.info("Preparing post to Spotify")
             headers = {
                 'authority': 'spclient.wg.spotify.com',
                 'authorization': 'Bearer {}'.format(self.access_token),
                 'content-type': 'text/plain;charset=UTF-8'
             }
+            self.logger.info("headers:")
+            self.logger.info(headers)
 
             request_body = json.dumps({'clientId': self.client, 'deviceId': self.device})
+            self.logger.info("body:")
+            self.logger.info(request_body)
 
             response = requests.post('https://spclient.wg.spotify.com/device-auth/v1/refresh', headers=headers, data=request_body)
+            self.logger.info("Got response")
+            self.logger.info(response)
+            self.logger.info(response.status_code)
+            if(response.status_code == 401):
+                self.logger.error("401 response from spotify")
+                return False
             json_resp = response.json()
+            if("error" in json_resp):
+                self.logger.error("Error response from spotify")
+                self.logger.info(json_resp["error"])
+                return False
+            self.logger.info("Response json:")
+            self.logger.info(json_resp)
+            self.logger.info("Umm")
             self.send_message({
                 "type": TYPE_ADD_USER,
                 "payload": {
@@ -64,13 +91,16 @@ class SpotifyController(BaseController):
                 }
             })
         if data["type"] == TYPE_ADD_USER_RESPONSE:
+            self.logger.info("Got add user response message")
             self.is_launched = True
             self.waiting.set()
 
         if data["type"] == TYPE_ADD_USER_ERROR:
+            self.logger.info("Got add user error message")
             self.device = None
             self.credential_error = True
             self.waiting.set()
+        self.logger.info("Finished receieve message")
         return True
 
     def launch_app(self, timeout=10):
